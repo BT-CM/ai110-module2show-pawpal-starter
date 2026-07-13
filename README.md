@@ -70,18 +70,33 @@ Today's Schedule
 
 ## 🧪 Testing PawPal+
 
-```bash
-# Run the full test suite:
-pytest
+The test suite lives in [`tests/test_pawpal.py`](tests/test_pawpal.py) and covers the
+core scheduling behaviors. It uses plain `assert` statements, so it runs either
+under `pytest` or directly with the standard library.
 
-# Run with coverage:
-pytest --cov
+```bash
+# Run the full suite with pytest (auto-discovers test_* functions):
+python -m pytest
+
+# ...or run it directly, no dependencies required:
+python tests/test_pawpal.py
 ```
+
+### What's covered
+
+| Behavior | What we verify |
+|----------|----------------|
+| **Sorting correctness** | `sort_by_time()` / `organize()` return tasks in ascending time-of-day order; untimed tasks sort last; the input list is not mutated |
+| **Recurrence logic** | Completing a daily/weekly task spawns a fresh, pending copy on the same pet; `once`/`monthly` do not recur; completing twice is idempotent (no duplicates) |
+| **Conflict detection** | `find_conflicts()` flags tasks sharing the exact same time (within and across pets); completed and untimed tasks are ignored; `conflict_warning()` returns a readable string and never crashes |
+| **Filtering** | `filter_tasks()` narrows by completion status and/or pet name, combining with AND |
+| **Edge cases** | Empty scheduler, a pet with no tasks, and a pet shared by two owners (counted once) |
 
 Sample test output:
 
 ```
-# Paste your pytest output here
+# Paste your `pytest` output here, e.g.:
+# ==================== 20 passed in 0.03s ====================
 ```
 
 ## 📐 Smarter Scheduling
