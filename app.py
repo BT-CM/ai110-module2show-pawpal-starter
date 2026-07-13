@@ -135,26 +135,77 @@ st.divider()
 
 # --- Today's Schedule (the Scheduler brain) ---------------------------------
 st.subheader("Build Schedule")
-st.caption("Organizes every pet's pending tasks by time of day.")
+st.caption(
+    "Everything below is driven by the Scheduler class: it filters, sorts by "
+    "time of day, flags same-time conflicts, and points out what's up next."
+)
 
-if st.button("Generate schedule"):
-    tasks = scheduler.organize()
-    if not tasks:
-        st.info("Nothing scheduled yet. Add pets and tasks above.")
-    else:
-        # Lightweight conflict check: warn, don't crash.
-        warning = scheduler.conflict_warning()
-        if warning:
-            st.warning(warning)
-        st.markdown("### 🐾 Today's Schedule")
-        st.table(
-            [
-                {
-                    "Time": t.time.strftime("%H:%M") if t.time else "--",
-                    "Pet": t.pet.name if t.pet else "Unassigned",
-                    "Task": t.description,
-                    "Frequency": t.frequency.value,
-                }
-                for t in tasks
-            ]
+# Filter controls — these map directly onto Scheduler.filter_tasks() and
+# Scheduler.organize(frequency=...). The view is reactive (no button), so it
+# updates the moment you change a filter.
+fcol1, fcol2, fcol3 = st.columns(3)
+with fcol1:
+    pet_filter = st.selectbox(
+        "Pet", ["All pets"] + [p.name for p in owner.pets]
+    )
+with fcol2:
+    status_filter = st.selectbox("Status", ["Pending", "Completed", "All"])
+with fcol3:
+    freq_filter = st.selectbox("Frequency", ["All"] + [f.name for f in Frequency])
+
+# Translate the UI choices into the Scheduler's own arguments.
+completed_arg = {"Pending": False, "Completed": True, "All": None}[status_filter]
+pet_arg = None if pet_filter == "All pets" else pet_filter
+
+# filter_tasks() handles pet + completion; sort_by_time() orders the result.
+tasks = Scheduler.sort_by_time(
+    scheduler.filter_tasks(completed=completed_arg, pet_name=pet_arg)
+)
+# Frequency isn't a filter_tasks() argument, so apply it here.
+if freq_filter != "All":
+    tasks = [t for t in tasks if t.frequency is Frequency[freq_filter]]
+
+if not tasks:
+    st.info("Nothing matches these filters yet. Add pets/tasks or widen the filters.")
+else:
+    # Collect the exact tasks involved in a same-time clash so we can both
+    # summarize the count and flag each conflicting row in the table.
+    conflict_groups = scheduler.find_conflicts()
+    conflicting = {id(t) for group in conflict_groups for t in group}
+
+    # At-a-glance summary of the currently filtered view.
+    mcol1, mcol2, mcol3 = st.columns(3)
+    mcol1.metric("Tasks shown", len(tasks))
+    mcol2.metric("Pending", sum(1 for t in tasks if not t.completed))
+    mcol3.metric("Conflicts", len(conflict_groups))
+
+    # Point out the single earliest pending task across ALL pets.
+    up_next = scheduler.next_task()
+    if up_next is not None and up_next.time is not None:
+        st.info(
+            f"⏭️ Up next: **{up_next.description}** for "
+            f"{up_next.pet.name if up_next.pet else 'Unassigned'} "
+            f"at {up_next.time.strftime('%H:%M')}."
         )
+
+    # Lightweight conflict check: warn when tasks clash, reassure when clear.
+    warning = scheduler.conflict_warning()
+    if warning:
+        st.warning(warning)
+    else:
+        st.success("✅ No scheduling conflicts — every task has its own time slot.")
+
+    st.markdown("### 🐾 Today's Schedule")
+    st.table(
+        [
+            {
+                "Time": t.time.strftime("%H:%M") if t.time else "--",
+                "Pet": t.pet.name if t.pet else "Unassigned",
+                "Task": t.description,
+                "Frequency": t.frequency.value.capitalize(),
+                "Status": "✅ Done" if t.completed else "⏳ Pending",
+                "Conflict": "⚠️ Clash" if id(t) in conflicting else "—",
+            }
+            for t in tasks
+        ]
+    )

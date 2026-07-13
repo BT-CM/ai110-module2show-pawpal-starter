@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python -m py_compile pawpal_system.py)"
+      "Bash(python -m py_compile pawpal_system.py)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('app.py'\\).read\\(\\)\\); print\\('app.py: syntax OK'\\)\")",
+      "Bash(python -c \"import streamlit\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('app.py', encoding='utf-8'\\).read\\(\\)\\); print\\('app.py: syntax OK'\\)\")",
+      "Bash(PYTHONIOENCODING=utf-8 python main.py)"
     ]
   }
 }

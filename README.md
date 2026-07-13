@@ -22,6 +22,17 @@ Your final app should:
 - Display the plan clearly (and ideally explain the reasoning)
 - Include tests for the most important scheduling behaviors
 
+## ✨ Features
+
+PawPal+ implements the following scheduling algorithms (all live in `Scheduler`/`Task`):
+
+- **Sorting by time of day** — `sort_by_time()` / `organize()` order every task earliest-first in `O(n log n)`. Untimed tasks (`time is None`) sort last by using `time.max` as their key, and the original list is never mutated.
+- **Filtering** — `filter_tasks()` narrows tasks by completion status and/or pet name, combining the two conditions with AND. `organize(frequency=...)` further restricts a plan to a single frequency.
+- **Conflict warnings** — `find_conflicts()` buckets tasks by exact time of day and returns each group of 2+ that clash (across pets, since one owner can't be in two places at once). `has_conflicts()` gives a quick boolean, and `conflict_warning()` returns a human-readable, never-crashing message for the UI. Detection is exact-time only, not overlapping durations.
+- **Daily/weekly recurrence** — completing a recurring task (`Task.complete()` → `spawn_next()`) auto-creates a fresh, pending copy on the same pet for its next occurrence. `once` and `monthly` do not recur, and completing a task twice is idempotent (no duplicate spawns).
+- **"Up next" lookup** — `next_task()` returns the single earliest pending task across all pets.
+- **Multi-pet / multi-owner aggregation** — the scheduler gathers tasks across every pet of every registered owner, de-duplicating pets that are shared between owners so they're counted once.
+
 ## Getting started
 
 ### Setup
@@ -73,6 +84,9 @@ Today's Schedule
 The test suite lives in [`tests/test_pawpal.py`](tests/test_pawpal.py) and covers the
 core scheduling behaviors. It uses plain `assert` statements, so it runs either
 under `pytest` or directly with the standard library.
+![Terminal output of successul  test run](image.png)
+
+Confidnece level - 4
 
 ```bash
 # Run the full suite with pytest (auto-discovers test_* functions):
@@ -110,12 +124,106 @@ Sample test output:
 
 ## 📸 Demo Walkthrough
 
-Describe your app in numbered steps so a reader can follow along without watching a video:
+### Main UI features
 
-1. <!-- Describe this step -->
-2. <!-- Describe this step -->
-3. <!-- Describe this step -->
-4. <!-- Describe this step -->
-5. <!-- Add more steps as needed -->
+The Streamlit app (`app.py`) is organized top-to-bottom into the actions a user performs:
 
-**Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->
+- **Owner** — set the owner's name; it stays in sync across reruns.
+- **Add a Pet** — enter name, species, breed, and age, then click **Add pet**. Duplicate names for the same owner are rejected, and current pets are listed back.
+- **Schedule a Task** — pick a pet, give the task a title, choose a time of day and a frequency (`once` / `daily` / `weekly` / `monthly`), then click **Add task**.
+- **Complete a Task** — pick any pending task and click **Mark complete**; recurring tasks automatically schedule their next occurrence.
+- **Build Schedule** — filter the plan by pet, status (Pending / Completed / All), and frequency. The view updates live and shows summary metrics, an "up next" banner, conflict warnings, and a sorted table.
+
+### Example workflow
+
+1. Enter the owner's name (e.g. *Jordan*).
+2. **Add a pet** — *Mochi*, a 2-year-old Shiba (dog).
+3. **Schedule a task** — a *Morning walk* for Mochi at `08:00`, `daily`.
+4. Add a few more tasks at different times (and, to see a clash, one more at `08:00`).
+5. **Build Schedule** — leave the filters on *All pets / Pending / All* and watch the table appear, sorted by time of day.
+6. Narrow **Pet** or **Frequency** to filter the plan, or switch **Status** to *Completed* to review finished tasks.
+7. **Mark a daily task complete** and rebuild the schedule to see its next occurrence reappear as pending.
+
+### Key Scheduler behaviors shown
+
+- **Sorting by time** — tasks always render earliest-first regardless of the order they were added; untimed tasks sort last.
+- **Filtering** — the Pet / Status / Frequency selectors map directly onto `filter_tasks()` and the frequency filter.
+- **Conflict warnings** — two tasks at the same time trigger a `st.warning` banner and a ⚠️ flag on each clashing row; a clear schedule shows a green `st.success` instead.
+- **"Up next"** — the earliest pending task across all pets is surfaced in a banner via `next_task()`.
+- **Daily/weekly recurrence** — completing a recurring task auto-spawns its next occurrence on the same pet.
+
+### Sample CLI output (`python main.py`)
+
+The `main.py` demo builds a two-pet household with tasks added out of order (and a deliberate `08:00` clash), then exercises each Scheduler behavior:
+
+```text
+====================================================
+Tasks in INSERTION order (jumbled on purpose)
+====================================================
+  18:30  |  Rex    |  Evening walk        (pending)
+  08:00  |  Rex    |  Morning walk        (done)
+  08:00  |  Rex    |  Morning walk        (pending)
+  12:00  |  Mia    |  Clean litter box    (pending)
+  07:30  |  Mia    |  Breakfast           (pending)
+  08:00  |  Mia    |  Vitamins            (pending)
+
+====================================================
+Sorted by time  (Scheduler.sort_by_time)
+====================================================
+  07:30  |  Mia    |  Breakfast           (pending)
+  08:00  |  Rex    |  Morning walk        (done)
+  08:00  |  Rex    |  Morning walk        (pending)
+  08:00  |  Mia    |  Vitamins            (pending)
+  12:00  |  Mia    |  Clean litter box    (pending)
+  18:30  |  Rex    |  Evening walk        (pending)
+
+====================================================
+Filtered: pending only  (filter_tasks(completed=False))
+====================================================
+  07:30  |  Mia    |  Breakfast           (pending)
+  08:00  |  Rex    |  Morning walk        (pending)
+  08:00  |  Mia    |  Vitamins            (pending)
+  12:00  |  Mia    |  Clean litter box    (pending)
+  18:30  |  Rex    |  Evening walk        (pending)
+
+====================================================
+Filtered: completed only  (filter_tasks(completed=True))
+====================================================
+  08:00  |  Rex    |  Morning walk        (done)
+
+====================================================
+Filtered: Rex's tasks  (filter_tasks(pet_name='Rex'))
+====================================================
+  08:00  |  Rex    |  Morning walk        (done)
+  08:00  |  Rex    |  Morning walk        (pending)
+  18:30  |  Rex    |  Evening walk        (pending)
+
+====================================================
+Combined: Rex's pending tasks  (completed=False, pet_name='Rex')
+====================================================
+  18:30  |  Rex    |  Evening walk        (pending)
+  08:00  |  Rex    |  Morning walk        (pending)
+
+====================================================
+Recurrence: completing a daily task spawns the next
+====================================================
+  Pending before: 5
+  Completing daily task: Rex - Evening walk
+  -> auto-scheduled next daily occurrence: Rex - Evening walk (18:30)
+  Pending after:  5
+
+  Schedule now (pending, sorted by time):
+  07:30  |  Mia    |  Breakfast           (pending)
+  08:00  |  Rex    |  Morning walk        (pending)
+  08:00  |  Mia    |  Vitamins            (pending)
+  12:00  |  Mia    |  Clean litter box    (pending)
+  18:30  |  Rex    |  Evening walk        (pending)
+
+====================================================
+Conflict detection (lightweight warning)
+====================================================
+[!] Scheduling conflicts found:
+  08:00 - 2 tasks overlap: Morning walk (Rex), Vitamins (Mia)
+
+  Verified: has_conflicts() == True
+```
