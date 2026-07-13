@@ -5,8 +5,12 @@
 **a. Initial design**
 
 - Briefly describe your initial UML design.
+    Owner: Name; [Owner with 1 or more pets], you can add and remove owners
+    Pet: Name, Speecies, Breed, Age ; [Pets with one or more owners, and some tasks to be done], you can add and remove pets
+    Task: Name, Duration, Priority; [Tasks assigned to one pet], you can create, delete and complete a task
+    Schedule: Task, start time, end time; [ A list of tasks to be completed, likely 1 schedule for each pet] -- youu can ccreate, modify, and delete a scheule
 - What classes did you include, and what responsibilities did you assign to each?
-
+    Owners show what pets are associated with them [ 1 or more], Pets give infromations on what the pet is, and what tasks need to be done [i.e. walking should be assigned and completed on dog, and a dog should have an owner]; Tasks are things that the owner/caretakers has to do for the pet [i.e. walking, feeding, grooming, etc]; schedule is a set of tasks that must be done, likely 1 schedule per pet
 **b. Design changes**
 
 - Did your design change during implementation?

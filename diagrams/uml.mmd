@@ -1,15 +1,59 @@
 classDiagram
-    %% Replace the placeholders below with your actual classes, attributes, methods, and relationships.
-    %% Keep this file updated so it matches your final implementation.
+    %% PawPal+ class diagram
 
-    class ClassName {
-        +type attribute
-        +method() returnType
+    class Frequency {
+        <<enumeration>>
+        ONCE
+        DAILY
+        WEEKLY
+        MONTHLY
     }
 
-    class AnotherClass {
-        +type attribute
-        +method() returnType
+    class Owner {
+        +String name
+        +List~Pet~ pets
+        +addPet(Pet pet) void
+        +removePet(Pet pet) void
+        +allTasks(bool includeCompleted) List~Task~
     }
 
-    ClassName --> AnotherClass : relationship
+    class Pet {
+        +String name
+        +String species
+        +String breed
+        +int age
+        +List~Owner~ owners
+        +List~Task~ tasks
+        +addTask(Task task) void
+        +removeTask(Task task) void
+        +pendingTasks() List~Task~
+    }
+
+    class Task {
+        +String description
+        +Time time
+        +Frequency frequency
+        +boolean completed
+        +Pet pet
+        +complete() void
+        +reset() void
+        +delete() void
+    }
+
+    class Scheduler {
+        +List~Owner~ owners
+        +registerOwner(Owner owner) void
+        +allPets() List~Pet~
+        +allTasks(bool includeCompleted) List~Task~
+        +pendingTasks() List~Task~
+        +assignTask(Pet pet, Task task) void
+        +completeTask(Task task) void
+        +removeTask(Task task) void
+        +organize(Frequency frequency, bool includeCompleted) List~Task~
+        +nextTask() Task
+    }
+
+    Owner "1..*" <--> "1..*" Pet : cares for
+    Pet "1" --> "0..*" Task : has
+    Task "*" --> "1" Frequency : recurs
+    Scheduler "1" o-- "0..*" Owner : manages
