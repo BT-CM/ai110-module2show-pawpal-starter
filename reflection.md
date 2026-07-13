@@ -15,7 +15,9 @@
 
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
+yes== Infinite-recursion repr. Owner.pets holds Pets and Pet.owners holds Owners. Dataclasses auto-generate __repr__, so printing an Owner recurses into its Pet, back into the Owner, forever;
 
+So we maintained repr=False
 ---
 
 ## 2. Scheduling Logic and Tradeoffs
@@ -28,7 +30,14 @@
 **b. Tradeoffs**
 
 - Describe one tradeoff your scheduler makes.
+
+    Conflict detection (`Scheduler.find_conflicts()`) only flags tasks that share the *exact* same start time. It groups tasks into buckets keyed on `Task.time` and reports any bucket with 2+ tasks. It does **not** detect *overlapping durations* — an 08:00 walk that takes 45 minutes and an 08:30 feeding genuinely collide for the owner, but since their start times differ they are reported as "no conflict."
+
+    This is a deliberate consequence of the data model: `Task` stores a start time but no duration, so exact-match is the only conflict check the data can honestly support. The upside is that it's simple, fast (a single O(n) grouping pass), and produces zero false positives — everything it flags is unambiguously a clash.
+
 - Why is that tradeoff reasonable for this scenario?
+
+    For a pet owner with a handful of pets and a dozen daily tasks, most real clashes *are* exact-time collisions (two things booked for 08:00), so the check catches the common case. Adding duration-aware overlap detection would require a new `duration` field on every task plus a sort-and-sweep interval algorithm (O(n log n)) — more data-entry friction and complexity than the current scope justifies. The honest risk is that a "no conflicts" result can read as false reassurance, so if the app grew I'd add durations and interval overlap next.
 
 ---
 
